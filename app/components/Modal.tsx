@@ -1,15 +1,21 @@
 import Image from "next/image";
 import { getTimeAgo } from "../utils/time";
-import HeartIcon from "./HeartIcon";
 import { Post } from "../types";
+import { HeartIcon } from "./HeartIcon";
 
 export default function Modal({
-post,
-onClose,
+  post,
+  onClose,
 }: {
-    post: Post;
-    onClose: () => void;
+  post: Post;
+  onClose: () => void;
 }) {
+
+  const username = post.profile?.username || 'default user';
+  const avatarUrl = post.profile?.avatar_url || "/usericon.png";
+
+  console.log(avatarUrl)
+  
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
@@ -45,14 +51,14 @@ onClose,
         <div className="flex items-center gap-3 p-4 border-b border-border">
           <div className="relative w-10 h-10 rounded-full overflow-hidden ring-2 ring-primary">
             <Image
-              src={post.user?.avatar || "https://i.pravatar.cc/150?img=5 "}
-              alt={post.user?.username || 'default user'}
+              src={avatarUrl}
+              alt={username}
               fill
               className="object-cover"
             />
           </div>
           <div className="flex flex-col">
-            <span className="font-semibold text-foreground">{post.user?.username || 'default user'}</span>
+            <span className="font-semibold text-foreground">@{username}</span>
             <span className="text-xs text-foreground/50">{getTimeAgo(new Date(post.created_at))}</span>
           </div>
         </div>
@@ -61,9 +67,10 @@ onClose,
         <div className="relative w-full aspect-square">
           <Image
             src={post.image_url}
-            alt={`Post de ${post.user?.username || 'default user'}`}
-            fill
-            className="object-cover"
+              alt={`Post de ${username}`}
+              fill
+              sizes="(max-width: 512px) 100vw, 512px"
+              className="object-cover"
           />
         </div>
 
@@ -72,11 +79,11 @@ onClose,
           <div className="flex items-center gap-2">
             <HeartIcon filled={true} />
             <span className="text-lg font-bold text-foreground">
-              {post.likes.toLocaleString()} likes
+              {post.likes_count.toLocaleString()} likes
             </span>
           </div>
           <p className="mt-2 text-foreground">
-            <span className="font-semibold">{post.user?.username || 'default user'}</span>{" "}
+            <span className="font-semibold">{username}</span>{" "}
             <span className="text-foreground/80">{post.caption}</span>
           </p>
         </div>

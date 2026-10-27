@@ -1,16 +1,34 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import { supabase } from "../lib/supabase";
+import Link from "next/link";
 
 export default function CreatePage() {
+  const [userId, setUserId] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [caption, setCaption] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (user) {
+        setUserId(user.id);
+      }
+      setIsCheckingAuth(false);
+    };
+
+    checkAuth();
+  }, []);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -33,15 +51,17 @@ export default function CreatePage() {
   };
 
   const uploadAndCreatePost = async (file: File) => {
-    const userId = "11111111-1111-1111-1111-111111111111";
+    if (!userId) {
+      throw new Error("No hay usuario autenticado");
+    }
 
-    // 1️⃣ Preparar nombre del archivo
+    // 1️⃣ Preparar nombre del archivo (sin caracteres raros)
     const fileExt = file.name.split(".").pop();
-    const fileName = `${file.name}-${Date.now()}.${fileExt}`;
+    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${fileExt}`;
     const filePath = `images/${fileName}`;
 
-    // 2️⃣ Subir al bucket "images"
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    // 2️⃣ Subir al bucket "Supagram2"
+    const { error: uploadError } = await supabase.storage
       .from("Supagram2")
       .upload(filePath, file, {
         cacheControl: "3600",
@@ -60,9 +80,7 @@ export default function CreatePage() {
 
     const publicUrl = urlData.publicUrl;
 
-    console.log("📸 Imagen subida:", publicUrl);
-
-    // 4️⃣ Crear el post en la tabla posts_new
+    // 4️⃣ Crear el post con el usuario logueado
     const { data: postData, error: postError } = await supabase
       .from("posts")
       .insert({
@@ -77,8 +95,6 @@ export default function CreatePage() {
       console.error("❌ Error creando el post:", postError);
       throw postError;
     }
-
-    console.log("🆕 Post creado:", postData);
 
     return {
       uploadedImageUrl: publicUrl,
@@ -100,7 +116,6 @@ export default function CreatePage() {
     try {
       await uploadAndCreatePost(imageFile);
 
-      // Éxito
       setMessage({ type: "success", text: "¡Post creado exitosamente!" });
       setImageFile(null);
       setImagePreview(null);
@@ -117,6 +132,27 @@ export default function CreatePage() {
       setIsLoading(false);
     }
   };
+
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-foreground/60">Cargando...</div>
+      </div>
+    );
+  }
+
+  if (!userId) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center px-4">
+        <div className="text-center">
+          <p className="text-foreground/60 mb-4">Debes iniciar sesión para crear posts</p>
+          <Link href="/auth/login" className="text-primary hover:underline">
+            Iniciar sesión
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -195,7 +231,7 @@ export default function CreatePage() {
                 </span>
               </label>
             )}
-            
+
             <input
               ref={fileInputRef}
               id="image-upload"
